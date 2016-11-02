@@ -3,16 +3,16 @@ from os import path, listdir
 from functools import partial
 from itertools import imap, ifilter
 from ast import parse
-from pip import __file__ as pip_loc
+from distutils.sysconfig import get_python_lib
 
 if __name__ == '__main__':
     package_name = 'offregister_postgres'
 
     f_for = partial(path.join, path.dirname(__file__), package_name)
-    d_for = partial(path.join, path.dirname(path.dirname(pip_loc)), package_name)
+    d_for = partial(path.join, get_python_lib(), package_name)
+    to_funcs = lambda name: (partial(path.join, f_for(name)), partial(path.join, d_for(name)))
 
-    _data_join = partial(path.join, f_for('data'))
-    _data_install_dir = partial(path.join, d_for('data'))
+    _data_join, _data_install_dir = to_funcs('data')
 
     get_vals = lambda var0, var1: imap(lambda buf: next(imap(lambda e: e.value.s, parse(buf).body)),
                                        ifilter(lambda line: line.startswith(var0) or line.startswith(var1), f))
