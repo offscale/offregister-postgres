@@ -1,11 +1,22 @@
+from cStringIO import StringIO
 from functools import partial
+
 from fabric.api import sudo
 from fabric.contrib.files import upload_template
+from fabric.operations import put
+
 from offregister_fab_utils.apt import apt_depends
+from offregister_fab_utils.fs import cmd_avail
+from offregister_fab_utils.ubuntu.systemd import restart_systemd
 
 
-def install(version='9.3', username='postgres', dbs=None, users=None,
-            extra_deps=tuple(), cluster=False, cluster_conf=None):
+def install0(version='9.6', username='postgres', dbs=None, users=None,
+             extra_deps=tuple(), cluster=False, cluster_conf=None, **kwargs):
+    sio = StringIO()
+    sio.write('deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main')
+    put(sio, '/etc/apt/sources.list.d/pgdg.list', use_sudo=True)
+    sudo('wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -')
+
     apt_depends('postgresql-{version}'.format(version=version),
                 'postgresql-contrib-{version}'.format(version=version),
                 'postgresql-server-dev-{version}'.format(version=version),
@@ -23,16 +34,19 @@ def install(version='9.3', username='postgres', dbs=None, users=None,
     if cluster:
         if not cluster_conf:
             raise ValueError('Cannot cluster without custom conf')
-        cluster_with_pgpool2(cluster_conf)
+        _cluster_with_pgpool(cluster_conf)
 
     return {'dbs': map(require_db, dbs), 'users': map(require_user, users)}
 
 
-def serve(service_cmd='restart'):
-    sudo('service postgres {service_cmd}'.format(service_cmd=service_cmd))
+def serve1(service_cmd='restart', **kwargs):
+    if cmd_avail('systemctl'):
+        return restart_systemd('postgresql')
+    else:
+        return sudo('service postgres {service_cmd}'.format(service_cmd=service_cmd))
 
 
-def cluster_with_pgpool2(conf_location, template_vars=None):
+def _cluster_with_pgpool(conf_location, template_vars=None, *args, **kwargs):
     # conf_location should have pgpool.conf, relative to python package dir
     apt_depends('pgpool2')
 
