@@ -1,9 +1,9 @@
-from cStringIO import StringIO
+from collections import namedtuple
 from functools import partial
 
 from fabric.api import sudo
-from fabric.contrib.files import upload_template
-from fabric.operations import put
+from fabric.context_managers import settings
+from fabric.contrib.files import upload_template, append
 
 from offregister_fab_utils.apt import apt_depends
 from offregister_fab_utils.fs import cmd_avail
@@ -12,31 +12,67 @@ from offregister_fab_utils.ubuntu.systemd import restart_systemd
 
 def install0(version='9.6', username='postgres', dbs=None, users=None,
              extra_deps=tuple(), cluster=False, cluster_conf=None, **kwargs):
-    sio = StringIO()
-    sio.write('deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main')
-    put(sio, '/etc/apt/sources.list.d/pgdg.list', use_sudo=True)
-    sudo('wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -')
+    ver = sudo("dpkg-query --showformat='${Version}' --show postgresql-9.6", warn_only=True)
+    if ver.failed or not ver.startswith(version):
+        append('/etc/apt/sources.list.d/pgdg.list', 'deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main',
+               use_sudo=True)
+        sudo('wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -')
 
-    apt_depends('postgresql-{version}'.format(version=version),
-                'postgresql-contrib-{version}'.format(version=version),
-                'postgresql-server-dev-{version}'.format(version=version),
-                *extra_deps)
+        apt_depends('postgresql-{version}'.format(version=version),
+                    'postgresql-contrib-{version}'.format(version=version),
+                    'postgresql-server-dev-{version}'.format(version=version),
+                    *extra_deps)
     postgres = partial(sudo, user=username)
 
-    def require_db(db):
-        if len(postgres("psql -tAc '\l {db}'".format(db=db))) == 0:
-            postgres('createdb {db}'.format(db=db))
+    Create = namedtuple('Create', ('user', 'password', 'dbname'))
 
-    def require_user(user):
-        if len(postgres("psql -tAc '\du {user}'".format(user=user))) == 0:
-            postgres('createuser --superuser {user}'.format(user=user))
+    def create(user):
+        make = Create(**user)
+        fmt = {}
 
-    if cluster:
-        if not cluster_conf:
-            raise ValueError('Cannot cluster without custom conf')
-        _cluster_with_pgpool(cluster_conf)
+        if len(postgres("psql -tAc '\du {user}'".format(user=make.user))) == 0:
+            fmt['user'] = make.user
+            if make.password:
+                postgres('''psql -c "CREATE USER {user} WITH PASSWORD '{password}'";'''.format(
+                    user=make.user, password=make.password
+                ))
+            else:
+                postgres('createuser --superuser {user}'.format(user=make.user))
 
-    return {'dbs': map(require_db, dbs), 'users': map(require_user, users)}
+        else:
+            fmt['user'] = None
+
+        if len(postgres("psql -tAc '\l {db}'".format(db=make.dbname))) == 0:
+            postgres('createdb {db}'.format(db=make.dbname))
+            fmt['db'] = make.dbname
+        else:
+            fmt['db'] = None
+
+        postgres('psql -c "GRANT ALL PRIVILEGES ON DATABASE {db} TO {user};"'.format(
+            db=make.dbname, user=make.user
+        ))
+
+        return 'User: {user}; DB: {db}; granted'.format(**fmt)
+
+    if 'create' in kwargs:
+        return map(create, kwargs['create'])
+
+    # TODO: Remove all below
+    if users is not None or dbs is not None:
+        def require_db(db):
+            if len(postgres("psql -tAc '\l {db}'".format(db=db))) == 0:
+                postgres('createdb {db}'.format(db=db))
+
+        def require_user(user):
+            if len(postgres("psql -tAc '\du {user}'".format(user=user))) == 0:
+                postgres('createuser --superuser {user}'.format(user=user))
+
+        if cluster:
+            if not cluster_conf:
+                raise ValueError('Cannot cluster without custom conf')
+            _cluster_with_pgpool(cluster_conf)
+
+        return {'dbs': map(require_db, dbs), 'users': map(require_user, users)}
 
 
 def serve1(service_cmd='restart', **kwargs):
