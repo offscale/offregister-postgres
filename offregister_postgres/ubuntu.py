@@ -11,7 +11,8 @@ from offregister_fab_utils.ubuntu.systemd import restart_systemd
 
 
 def install0(version='9.6', username='postgres', dbs=None, users=None,
-             extra_deps=tuple(), cluster=False, cluster_conf=None, **kwargs):
+             extra_deps=tuple(), cluster=False, cluster_conf=None,
+             superuser=False, **kwargs):
     ver = sudo("dpkg-query --showformat='${Version}' --show postgresql-9.6", warn_only=True)
     if ver.failed or not ver.startswith(version):
         append('/etc/apt/sources.list.d/pgdg.list', 'deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main',
@@ -37,10 +38,13 @@ def install0(version='9.6', username='postgres', dbs=None, users=None,
                     user=make.user, password=make.password
                 ))
             else:
-                postgres('createuser --superuser {user}'.format(user=make.user))
+                postgres('createuser {user}'.format(user=make.user))
 
         else:
             fmt['user'] = None
+
+        if superuser:
+            postgres('psql -c "ALTER USER {user} WITH SUPERUSER;"'.format(user=make.user))
 
         if len(postgres("psql -tAc '\l {db}'".format(db=make.dbname))) == 0:
             postgres('createdb {db}'.format(db=make.dbname))
