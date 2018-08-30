@@ -1,19 +1,16 @@
-from collections import namedtuple
-from functools import partial
-
 from fabric.api import sudo
-from fabric.context_managers import settings
 from fabric.contrib.files import upload_template, append
-
 from offregister_fab_utils.apt import apt_depends
 from offregister_fab_utils.fs import cmd_avail
 from offregister_fab_utils.ubuntu.systemd import restart_systemd
 
+from offregister_postgres.utils import setup_users
 
-def install0(version='9.6', username='postgres', dbs=None, users=None,
-             extra_deps=tuple(), cluster=False, cluster_conf=None,
-             superuser=False, **kwargs):
-    ver = sudo("dpkg-query --showformat='${Version}' --show postgresql-9.6", warn_only=True)
+
+def install0(version='9.6',
+             extra_deps=tuple(), **kwargs):
+    ver = sudo("dpkg-query --showformat='${Version}'" +
+               ' --show postgresql-{version}'.format(version=version), warn_only=True)
     if ver.failed or not ver.startswith(version):
         append('/etc/apt/sources.list.d/pgdg.list', 'deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main',
                use_sudo=True)
@@ -23,63 +20,15 @@ def install0(version='9.6', username='postgres', dbs=None, users=None,
                     'postgresql-contrib-{version}'.format(version=version),
                     'postgresql-server-dev-{version}'.format(version=version),
                     *extra_deps)
-    postgres = partial(sudo, user=username)
-
-    Create = namedtuple('Create', ('user', 'password', 'dbname'))
-
-    def create(user):
-        make = Create(**user)
-        fmt = {}
-
-        if len(postgres("psql -tAc '\du {user}'".format(user=make.user))) == 0:
-            fmt['user'] = make.user
-            if make.password:
-                postgres('''psql -c "CREATE USER {user} WITH PASSWORD '{password}'";'''.format(
-                    user=make.user, password=make.password
-                ))
-            else:
-                postgres('createuser {user}'.format(user=make.user))
-
-        else:
-            fmt['user'] = None
-
-        if superuser:
-            postgres('psql -c "ALTER USER {user} WITH SUPERUSER;"'.format(user=make.user))
-
-        if len(postgres("psql -tAc '\l {db}'".format(db=make.dbname))) == 0:
-            postgres('createdb {db}'.format(db=make.dbname))
-            fmt['db'] = make.dbname
-        else:
-            fmt['db'] = None
-
-        postgres('psql -c "GRANT ALL PRIVILEGES ON DATABASE {db} TO {user};"'.format(
-            db=make.dbname, user=make.user
-        ))
-
-        return 'User: {user}; DB: {db}; granted'.format(**fmt)
-
-    if 'create' in kwargs:
-        return map(create, kwargs['create'])
-
-    # TODO: Remove all below
-    if users is not None or dbs is not None:
-        def require_db(db):
-            if len(postgres("psql -tAc '\l {db}'".format(db=db))) == 0:
-                postgres('createdb {db}'.format(db=db))
-
-        def require_user(user):
-            if len(postgres("psql -tAc '\du {user}'".format(user=user))) == 0:
-                postgres('createuser --superuser {user}'.format(user=user))
-
-        if cluster:
-            if not cluster_conf:
-                raise ValueError('Cannot cluster without custom conf')
-            _cluster_with_pgpool(cluster_conf)
-
-        return {'dbs': map(require_db, dbs), 'users': map(require_user, users)}
 
 
-def serve1(service_cmd='restart', **kwargs):
+def setup_users1(username='postgres', dbs=None, users=None, cluster=False, cluster_conf=None,
+                 superuser=False, *args, **kwargs):
+    return setup_users(username=username, dbs=dbs, users=users, cluster=cluster, superuser=superuser,
+                       kwargs=kwargs)
+
+
+def serve2(service_cmd='restart', **kwargs):
     if cmd_avail('systemctl'):
         return restart_systemd('postgresql')
     else:
