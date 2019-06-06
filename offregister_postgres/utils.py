@@ -65,7 +65,9 @@ def setup_users(username='postgres', dbs=None, users=None, cluster=False, cluste
 
         return 'User: {user}; DB: {db}; granted'.format(**fmt)
 
-    assert kwargs['create'] and len(kwargs['create'])
+    if 'kwargs' in kwargs:  # Weird edge case here, ** should unroll the dictionary?
+        kwargs = kwargs['kwargs']
+    assert kwargs.get('create') is not None and len(kwargs['create']), 'create not found in {}'.format(kwargs)
     assert isinstance(kwargs['create'], Iterable) and not isinstance(kwargs['create'], basestring)
     if 'create' in kwargs:
         return map(create, kwargs['create'])
