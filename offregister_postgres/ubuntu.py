@@ -7,12 +7,12 @@ from offregister_fab_utils.ubuntu.systemd import restart_systemd
 from offregister_postgres.utils import setup_users
 
 
-def install0(version='9.6',
+def install0(version='12.1',
              extra_deps=tuple(), **kwargs):
     ver = sudo("dpkg-query --showformat='${Version}'" +
                ' --show postgresql-{version}'.format(version=version), warn_only=True)
     if ver.failed or not ver.startswith(version):
-        append('/etc/apt/sources.list.d/pgdg.list', 'deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main',
+        append('/etc/apt/sources.list.d/pgdg.list', 'deb http://apt.postgresql.org/pub/repos/apt/ bionic main',
                use_sudo=True)
         sudo('wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -')
 
