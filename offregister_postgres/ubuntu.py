@@ -1,5 +1,6 @@
 from fabric.api import sudo
 from fabric.contrib.files import upload_template, append
+from fabric.operations import run
 from offregister_fab_utils.apt import apt_depends
 from offregister_fab_utils.fs import cmd_avail
 from offregister_fab_utils.ubuntu.systemd import restart_systemd
@@ -7,12 +8,15 @@ from offregister_fab_utils.ubuntu.systemd import restart_systemd
 from offregister_postgres.utils import setup_users
 
 
-def install0(version='12.1',
+def install0(version='12',
              extra_deps=tuple(), **kwargs):
     ver = sudo("dpkg-query --showformat='${Version}'" +
                ' --show postgresql-{version}'.format(version=version), warn_only=True)
+    apt_depends('sysstat')
     if ver.failed or not ver.startswith(version):
-        append('/etc/apt/sources.list.d/pgdg.list', 'deb http://apt.postgresql.org/pub/repos/apt/ bionic main',
+        dist = run('lsb_release -cs')
+        append('/etc/apt/sources.list.d/pgdg.list',
+               'deb http://apt.postgresql.org/pub/repos/apt/ {dist}-pgdg main'.format(dist=dist),
                use_sudo=True)
         sudo('wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -')
 
