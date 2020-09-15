@@ -1,6 +1,6 @@
 from collections import namedtuple, Iterable
 from functools import partial
-from urlparse import urlparse, ParseResult
+from urllib.parse import urlparse, ParseResult
 
 from fabric.context_managers import settings
 from fabric.operations import sudo
@@ -11,23 +11,37 @@ def get_postgres_params(parsed_connection_str):  # type: (str or ParseResult) ->
     if not isinstance(parsed_connection_str, ParseResult):
         parsed_connection_str = urlparse(parsed_connection_str)
 
-    return ' '.join(('--host={}'.format(parsed_connection_str.hostname or 'localhost'),
-                     '--port={}'.format(parsed_connection_str.port or 5432),
-                     '--username={}'.format(parsed_connection_str.username or 'postgres')))
+    return " ".join(
+        (
+            "--host={}".format(parsed_connection_str.hostname or "localhost"),
+            "--port={}".format(parsed_connection_str.port or 5432),
+            "--username={}".format(parsed_connection_str.username or "postgres"),
+        )
+    )
 
 
-def setup_users(username='postgres', dbs=None, users=None, cluster=False, cluster_conf=None,
-                superuser=False, connection_str='', **kwargs):
+def setup_users(
+    username="postgres",
+    dbs=None,
+    users=None,
+    cluster=False,
+    cluster_conf=None,
+    superuser=False,
+    connection_str="",
+    **kwargs
+):
     postgres = partial(sudo, user=username, shell_escape=True)
 
-    Create = namedtuple('Create', ('user', 'password', 'dbname'))
+    Create = namedtuple("Create", ("user", "password", "dbname"))
 
     # parsed_conn_str = urlparse(connection_str[1:-1])
 
     def create(user):
         make = Create(**user)
         if not make.user or not make.password or not make.dbname:
-            raise AttributeError('To create a user, you must include user, password and dbname')
+            raise AttributeError(
+                "To create a user, you must include user, password and dbname"
+            )
 
         fmt = {}
 
@@ -35,42 +49,64 @@ def setup_users(username='postgres', dbs=None, users=None, cluster=False, cluste
 
         if postgres(
             "psql -t -c '\\du' {database_uri} | grep -Fq {user}".format(
-                database_uri=database_uri, user=make.user), warn_only=True).failed:
-            fmt['user'] = make.user
+                database_uri=database_uri, user=make.user
+            ),
+            warn_only=True,
+        ).failed:
+            fmt["user"] = make.user
             if make.password:
-                postgres("""psql {database_uri} -c "CREATE USER {user} WITH PASSWORD {password}"; """.format(
-                    database_uri=database_uri, user=make.user, password=ensure_quoted(make.password)
-                ))
+                postgres(
+                    """psql {database_uri} -c "CREATE USER {user} WITH PASSWORD {password}"; """.format(
+                        database_uri=database_uri,
+                        user=make.user,
+                        password=ensure_quoted(make.password),
+                    )
+                )
             else:
-                postgres('createuser {user}'.format(user=make.user))
+                postgres("createuser {user}".format(user=make.user))
         else:
-            fmt['user'] = None
+            fmt["user"] = None
 
         if superuser:
             postgres(
-                "psql {database_uri} -c 'ALTER USER {user} WITH SUPERUSER;'".format(database_uri=database_uri,
-                                                                                    user=make.user))
+                "psql {database_uri} -c 'ALTER USER {user} WITH SUPERUSER;'".format(
+                    database_uri=database_uri, user=make.user
+                )
+            )
 
-        if len(
-            postgres("""psql {database_uri} -tAc "SELECT 1 FROM pg_database WHERE datname={db}";""".format(
-                database_uri=database_uri, db=ensure_quoted(make.dbname)))) == 0:
-            postgres('createdb {db}'.format(db=make.dbname))
-            fmt['db'] = make.dbname
+        if (
+            len(
+                postgres(
+                    """psql {database_uri} -tAc "SELECT 1 FROM pg_database WHERE datname={db}";""".format(
+                        database_uri=database_uri, db=ensure_quoted(make.dbname)
+                    )
+                )
+            )
+            == 0
+        ):
+            postgres("createdb {db}".format(db=make.dbname))
+            fmt["db"] = make.dbname
         else:
-            fmt['db'] = None
+            fmt["db"] = None
 
-        postgres("""psql {database_uri} -c "GRANT ALL PRIVILEGES ON DATABASE {db} TO {user};" """.format(
-            database_uri=database_uri, db=make.dbname, user=make.user
-        ))
+        postgres(
+            """psql {database_uri} -c "GRANT ALL PRIVILEGES ON DATABASE {db} TO {user};" """.format(
+                database_uri=database_uri, db=make.dbname, user=make.user
+            )
+        )
 
-        return 'User: {user}; DB: {db}; granted'.format(**fmt)
+        return "User: {user}; DB: {db}; granted".format(**fmt)
 
-    if 'kwargs' in kwargs:  # Weird edge case here, ** should unroll the dictionary?
-        kwargs = kwargs['kwargs']
-    assert kwargs.get('create') is not None and len(kwargs['create']), 'create not found in {}'.format(kwargs)
-    assert isinstance(kwargs['create'], Iterable) and not isinstance(kwargs['create'], basestring)
-    if 'create' in kwargs:
-        return map(create, kwargs['create'])
+    if "kwargs" in kwargs:  # Weird edge case here, ** should unroll the dictionary?
+        kwargs = kwargs["kwargs"]
+    assert kwargs.get("create") is not None and len(
+        kwargs["create"]
+    ), "create not found in {}".format(kwargs)
+    assert isinstance(kwargs["create"], Iterable) and not isinstance(
+        kwargs["create"], str
+    )
+    if "create" in kwargs:
+        return list(map(create, kwargs["create"]))
 
     # TODO: Remove all below
     # if users is not None or dbs is not None:
