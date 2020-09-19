@@ -16,15 +16,15 @@ if __name__ == "__main__":
 
     _data_join, _data_install_dir = to_funcs("data")
 
-    get_vals = lambda var0, var1: list(
-        map(
-            lambda buf: next([e.value.s for e in parse(buf).body]),
-            [line for line in f if line.startswith(var0) or line.startswith(var1)],
-        )
-    )
-
     with open(path.join(package_name, "__init__.py")) as f:
-        __author__, __version__ = get_vals("__version__", "__author__")
+        __author__, __version__ = map(
+            lambda buf: next(map(lambda e: e.value.s, parse(buf).body)),
+            filter(
+                lambda line: line.startswith("__version__")
+                or line.startswith("__author__"),
+                f,
+            ),
+        )
 
     setup(
         name=package_name,
