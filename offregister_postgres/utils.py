@@ -1,6 +1,12 @@
 from collections import namedtuple, Iterable
 from functools import partial
-from urllib.parse import urlparse, ParseResult
+from sys import version
+
+if version[0] == "2":
+    from itertools import imap as map
+    from urlparse import ParseResult, urlparse
+else:
+    from urllib.parse import urlparse, ParseResult
 
 from fabric.context_managers import settings
 from fabric.operations import sudo
