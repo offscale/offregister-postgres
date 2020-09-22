@@ -7,6 +7,8 @@ from offregister_fab_utils.ubuntu.systemd import restart_systemd
 
 from offregister_postgres.utils import setup_users
 
+from offutils.util import iteritems
+
 
 def install0(version="12", extra_deps=tuple(), **kwargs):
     ver = sudo(
@@ -71,7 +73,7 @@ def _cluster_with_pgpool(conf_location, template_vars=None, *args, **kwargs):
     if not template_vars:
         template_vars = default_tpl_vars
     else:
-        for k, v in list(default_tpl_vars.items()):
+        for k, v in iteritems(default_tpl_vars):
             if k not in template_vars:
                 template_vars[k] = v
 
