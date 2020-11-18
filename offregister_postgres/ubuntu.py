@@ -10,7 +10,7 @@ from offregister_postgres.utils import setup_users
 from offutils.util import iteritems
 
 
-def install0(version="12", extra_deps=tuple(), **kwargs):
+def install0(version="13", extra_deps=tuple(), **kwargs):
     ver = sudo(
         "dpkg-query --showformat='${Version}'"
         + " --show postgresql-{version}".format(version=version),
