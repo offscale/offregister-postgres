@@ -1,13 +1,12 @@
 from fabric.api import sudo
-from fabric.contrib.files import upload_template, append
+from fabric.contrib.files import append, upload_template
 from fabric.operations import run
 from offregister_fab_utils.apt import apt_depends
 from offregister_fab_utils.fs import cmd_avail
 from offregister_fab_utils.ubuntu.systemd import restart_systemd
+from offutils.util import iteritems
 
 from offregister_postgres.utils import setup_users
-
-from offutils.util import iteritems
 
 
 def install0(version="13", extra_deps=tuple(), **kwargs):
