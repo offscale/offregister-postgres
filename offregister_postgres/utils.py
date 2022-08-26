@@ -53,12 +53,15 @@ def setup_users(
 
         database_uri = ensure_quoted(connection_str)
 
-        if postgres(
-            "psql -t -c '\\du' {database_uri} | grep -Fq {user}".format(
-                database_uri=database_uri, user=make.user
-            ),
-            warn_only=True,
-        ).failed:
+        if (
+            postgres(
+                "psql -t -c '\\du' {database_uri} | grep -Fq {user}".format(
+                    database_uri=database_uri, user=make.user
+                ),
+                warn=True,
+            ).exited
+            != 0
+        ):
             fmt["user"] = make.user
             if make.password:
                 postgres(
@@ -127,7 +130,7 @@ def setup_users(
     #     def require_user(user):
     #         if postgres('''psql -t -c '\du' "{database_uri}" | grep -Fq {user}'''.format(
     #             connection_str=connection_str, user=user['name']
-    #         ), warn_only=True).failed:
+    #         ), warn=True).exited != 0:
     #             params = get_postgres_params(parsed_conn_str)
     #             with settings(prompts={'Password: ': parsed_conn_str.password}):
     #                 postgres('createuser {params} --superuser {user}'.format(params=params, user=user['name']))
