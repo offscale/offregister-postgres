@@ -87,14 +87,12 @@ def setup_users(
             )
 
         if (
-            len(
-                postgres(
-                    """psql {database_uri} -tAc "SELECT 1 FROM pg_database WHERE datname={db}";""".format(
-                        database_uri=database_uri, db=ensure_quoted(make.dbname)
-                    )
+            postgres(
+                """psql {database_uri} -tAc "SELECT 1 FROM pg_database WHERE datname={db}";""".format(
+                    database_uri=database_uri, db=ensure_quoted(make.dbname)
                 )
-            )
-            == 0
+            ).stdout.rstrip()
+            != "1"
         ):
             postgres("createdb {db}".format(db=make.dbname))
             fmt["db"] = make.dbname

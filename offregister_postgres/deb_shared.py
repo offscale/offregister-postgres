@@ -26,7 +26,7 @@ def install0(c, version="14", extra_deps=tuple(), **kwargs):
         warn=True,
     )
     apt_depends(c, "sysstat")
-    if ver.exited != 0 or not ver.startswith(version):
+    if ver.exited != 0 or not ver.stdout.startswith(version):
         dist = c.run("lsb_release -cs").stdout.rstrip()
 
         local = "deb http://apt.postgresql.org/pub/repos/apt/ {dist}-pgdg main".format(
@@ -37,7 +37,7 @@ def install0(c, version="14", extra_deps=tuple(), **kwargs):
             c,
             remote="/etc/apt/sources.list.d/pgdg.list",
             local=local,
-            local_is_bytes=True
+            local_is_bytes=True,
         )
         c.sudo(
             "wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -"
