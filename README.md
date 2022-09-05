@@ -6,9 +6,10 @@ offregister_postgres
 [![black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort)
 
-Follows [offregister](https://github.com/offscale/offregister) specification. Currently supports:
+Follows [offregister](https://github.com/offscale/offregister) specification. Currently supports PostgreSQL on:
 
-  - Postgres (on Ubuntu 14.04 LTS, 16.04 LTS, 18.04 LTS)
+  - Ubuntu: 14.04 LTS, 16.04 LTS, 18.04 LTS
+  - Debian: 10
 
 ## Install dependencies
 

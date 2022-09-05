@@ -1,6 +1,7 @@
-from collections import Iterable, namedtuple
+from collections import namedtuple
 from functools import partial
 from sys import version
+from typing import Iterable, Union
 
 if version[0] == "2":
     from itertools import imap as map
@@ -9,11 +10,12 @@ if version[0] == "2":
 else:
     from urllib.parse import urlparse, ParseResult
 
-from fabric.operations import sudo
 from offutils import ensure_quoted
 
 
-def get_postgres_params(parsed_connection_str):  # type: (str or ParseResult) -> str
+def get_postgres_params(
+    parsed_connection_str,
+):  # type: (Union[str, ParseResult]) -> str
     if not isinstance(parsed_connection_str, ParseResult):
         parsed_connection_str = urlparse(parsed_connection_str)
 
@@ -27,6 +29,7 @@ def get_postgres_params(parsed_connection_str):  # type: (str or ParseResult) ->
 
 
 def setup_users(
+    c,
     username="postgres",
     dbs=None,
     users=None,
@@ -36,7 +39,7 @@ def setup_users(
     connection_str="",
     **kwargs
 ):
-    postgres = partial(sudo, user=username, shell_escape=True)
+    postgres = partial(c.sudo, user=username)
 
     Create = namedtuple("Create", ("user", "password", "dbname"))
 
