@@ -7,7 +7,7 @@ from offutils.util import iteritems
 from offregister_postgres.utils import setup_users
 
 
-def install0(c, version="14", extra_deps=tuple(), **kwargs):
+def install0(c, version="15", extra_deps=tuple(), **kwargs):
     """
     Install PostgreSQL
 
@@ -27,6 +27,7 @@ def install0(c, version="14", extra_deps=tuple(), **kwargs):
     )
     apt_depends(c, "sysstat")
     if ver.exited != 0 or not ver.stdout.startswith(version):
+        apt_depends(c, "curl")
         dist = c.run("lsb_release -cs").stdout.rstrip()
 
         local = "deb http://apt.postgresql.org/pub/repos/apt/ {dist}-pgdg main".format(
@@ -40,7 +41,7 @@ def install0(c, version="14", extra_deps=tuple(), **kwargs):
             local_is_bytes=True,
         )
         c.sudo(
-            "wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -"
+            "curl --proto '=https' --tlsv1.2 -sSf https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -"
         )
 
         apt_depends(
