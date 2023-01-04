@@ -1,7 +1,7 @@
 from collections import namedtuple
 from functools import partial
 from sys import version
-from typing import Iterable, Union
+from typing import Iterable
 
 if version[0] == "2":
     from itertools import imap as map
